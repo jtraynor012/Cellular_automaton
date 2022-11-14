@@ -1,3 +1,9 @@
+/*
+JAKE TRAYNOR 190010800
+MODULE CODE: AC21009
+*/
+
+
 #include <iostream>
 #include <bitset>
 #include <chrono>
@@ -11,13 +17,17 @@
 #define x_dim 120
 #define y_dim 60
 
+
 //function templates
 void display_generation_one_dim(std::bitset<ONE_D_SIZE> line);
 void display_generation_two_dim(int grid[y_dim][x_dim]);
 int one_dimensional_simulation(int rule_num);
-int conways_game_of_life(bool is_three_d, bool is_random);
+int conways_game_of_life(bool is_three_d, bool is_random, int multi_d_variables[2]);
 int count_neighbours(int grid[y_dim][x_dim], int x, int y, bool is_three_d);
 int read_from_file(std::string file_name, int (&grid)[y_dim][x_dim]);
+int change_sim_variables(int (&multi_d_variables)[2]);
+int save_to_file(int grid[y_dim][x_dim]);
+int verify_file (std::string file_name);
 
 /*
 	sleep for x milliseconds code from
@@ -25,34 +35,25 @@ int read_from_file(std::string file_name, int (&grid)[y_dim][x_dim]);
 	Date: 11/11/22
 */
 
-
 int main(){
 
-	/*
-	TO-DO
-	-add functionality to let user decide if they want random seed or seed from file - DONE
-	-create more files (see conways game of life wiki for seeds) - DONE
-	-add error checking to read from file function (file not found or wrong formatting etc) ********
-	-finish menu system
-		-let user pick 1D, 2D or 3D simulation - DONE
-		-let user change simulation variables (number of generations, time between generations, ruleset for 1D) - DONE
-		 *x and y dimensions must stay constant*
-	-add functionality to let user save seed from simulation **********
-
-	whatever else you think of which would be good to add
-	*/
-
 	bool running = true;
+	//number of generations, milliseconds between generations
+	int multi_d_variables[2] = {200, 50};
 
 	while(running){
-		int option = 0;
+		int option;
 		std::cout<<"Cellular Automaton" << std::endl << std::endl;
 		std::cout<< "[1] 1-Dimensional Simulation" << std::endl;
 		std::cout<< "[2] 2-D Conways Game of Life" << std::endl;
 		std::cout<< "[3] 3-D Conways Game of Life" << std::endl;
-		std::cout<< "[4] Quit" << std::endl;
+		std::cout<< "[4] Simulation Variables" << std::endl;
+		std::cout<< "[5] Quit" << std::endl;
 		std::cout<< ">";
-		std::cin >> option;
+		if(!(std::cin >> option)){
+			std::cin.clear();
+			std::cin.ignore(512, '\n');
+		}
 
 		switch(option){
 			int rule;
@@ -60,7 +61,10 @@ int main(){
 				rule = 0;
 				do{
 				std::cout<<"Please enter a rule between 0 and 255 (30, 90 or 110 recommended): ";
-				std::cin >> rule;
+				if(!(std::cin >> rule)){
+						std::cin.clear();
+						std::cin.ignore(512, '\n');
+					}
 				if(rule < 0 || rule > 255)
 					std::cout<<"Rule must be between 0 and 255!"<<std::endl;
 				}while(rule < 0 || rule > 255);
@@ -72,17 +76,20 @@ int main(){
 				rule = 0;
 				do{
 					std::cout << "Enter 1 for a random seed or 2 to load seed from file: ";
-					std::cin >> rule;
+					if(!(std::cin >> rule)){
+						std::cin.clear();
+						std::cin.ignore(512, '\n');
+					}
 					if(rule != 1 && rule != 2){
 						std::cout<<"You must enter either 1 or 2!"<<std::endl;
 					}
 				}while(rule != 1 && rule != 2);
 
 				if(rule == 1){
-					conways_game_of_life(false, true);
+					conways_game_of_life(false, true, multi_d_variables);
 				}
 				else{
-					conways_game_of_life(false, false);
+					conways_game_of_life(false, false, multi_d_variables);
 				}
 				break;
 
@@ -90,26 +97,33 @@ int main(){
 				rule = 0;
 				do{
 					std::cout << "Enter 1 for a random seed or 2 to load seed from file: ";
-					std::cin >> rule;
+					if(!(std::cin >> rule)){
+						std::cin.clear();
+						std::cin.ignore(512, '\n');
+					}
 					if(rule != 1 && rule != 2){
 						std::cout<<"You must enter either 1 or 2!"<<std::endl;
 					}
 				}while(rule != 1 && rule != 2);
 
 				if(rule == 1){
-					conways_game_of_life(true, true);
+					conways_game_of_life(true, true, multi_d_variables);
 				}
 				else{
-					conways_game_of_life(true, false);
+					conways_game_of_life(true, false, multi_d_variables);
 				}
 				break;
 
 			case 4:
+				change_sim_variables(multi_d_variables);
+				break;
+
+			case 5:
 				running = false;
 				break;
 
 			default:
-				std::cout<< "Please pick from the options shown!";
+				std::cout<< "Please pick from the options shown!"<<std::endl;
 				break;
 
 		}
@@ -121,13 +135,11 @@ int main(){
 	return 0;
 }
 
-
-
 //rule num determines rule set for 1D simulation, must be between 0 and 255 inclusive
 int one_dimensional_simulation(int rule_num){
 
-	#define ONE_D_NUM_GENERATIONS 32
-
+	#define NUM_GENERATIONS 32
+	
 	if(rule_num < 0 || rule_num > 255){
 		return 1;
 	}
@@ -147,10 +159,10 @@ int one_dimensional_simulation(int rule_num){
 	std::cout<<std::endl;
 
 	//loop for specified number of generations
-	for(int k = 0; k < ONE_D_NUM_GENERATIONS; k++){
+	for(int k = 0; k < NUM_GENERATIONS; k++){
 
 		//for every live cell in grid, mark the live neighbours in the pattern bitset
-		for(int i = 0; i < ONE_D_SIZE; i++){
+		for(int i = 0; i <=ONE_D_SIZE; i++){
 			for(int j = -1; j < 2; j++){
 				if(parent[((i+j)%ONE_D_SIZE)] == 1){
 					pattern[j+1] = 1;
@@ -174,25 +186,25 @@ int one_dimensional_simulation(int rule_num){
 	return 0;
 }
 
-
-int conways_game_of_life(bool is_three_d, bool is_random){
+int conways_game_of_life(bool is_three_d, bool is_random, int multi_d_variables[2]){
 
 	//initialise parent and child grids to all zeros
 	int parent_grid[y_dim][x_dim] = {{0}};
 	int child_grid[y_dim][x_dim] = {{0}};
+
+	int initial_seed[y_dim][x_dim] = {{0}};
 
 	//seed the randomiser with current time
 	srand(time(0));
 
 	int neighbour_count;
 
-
-	
 	if(is_random){
 		//fill parent grid with random values
 		for(int i = 0; i < y_dim; i++){
 			for(int j = 0; j < x_dim; j++){
 				parent_grid[i][j] = std::rand()%2;
+				initial_seed[i][j] = parent_grid[i][j];
 			}
 		}
 	}
@@ -201,20 +213,19 @@ int conways_game_of_life(bool is_three_d, bool is_random){
 		std::cout<<"Please enter a file name to load as a seed (must be 120 columns by 60 rows): ";
 		std::cin >> file_name;
 		//read seed from file
-		read_from_file(file_name, parent_grid);
-
-		//display initial generation for 500 milliseconds
-		display_generation_two_dim(parent_grid);
-		std::this_thread::sleep_for(std::chrono::milliseconds(500));
+		if(read_from_file(file_name, parent_grid) == 1){
+			std::cout<<"File could not be opened..."<<std::endl;
+			return 1;
+		}
 	}
 
 	//display initial generation for 500 milliseconds
 	display_generation_two_dim(parent_grid);
-	std::this_thread::sleep_for(std::chrono::milliseconds(500));
+	std::this_thread::sleep_for(std::chrono::milliseconds(multi_d_variables[1]));
 
 
 	//loop for 32 generations
-	for(int num_gen = 0; num_gen < 200; num_gen++){
+	for(int num_gen = 0; num_gen < multi_d_variables[0]; num_gen++){
 
 		//for every cell in parent grid, count its neighbours and then check against the rules to 
 		//assign state to corresponding cell in child grid
@@ -249,7 +260,7 @@ int conways_game_of_life(bool is_three_d, bool is_random){
 
 		//display generated grid
 		display_generation_two_dim(child_grid);
-		std::this_thread::sleep_for(std::chrono::milliseconds(50));
+		std::this_thread::sleep_for(std::chrono::milliseconds(multi_d_variables[1]));
 
 		//swap parent and child grid and reset child grid
 		for(int i = 0; i < y_dim; i++){
@@ -257,6 +268,24 @@ int conways_game_of_life(bool is_three_d, bool is_random){
 				parent_grid[i][j] = child_grid[i][j];
 				child_grid[i][j] = 0;
 			}
+		}
+	}
+
+	if(is_random){
+		int save_seed_option;
+		do{
+		std::cout<<"Type 1 to save this seed to file or 0 to continue: ";
+		if(!(std::cin>> save_seed_option)){
+			std::cin.clear();
+			std::cin.ignore(512, '\n');
+		}
+		if(save_seed_option != 0 && save_seed_option != 1){
+			std::cout<<"Please enter either 1 or 0 !";
+		}
+		}while(save_seed_option != 0 && save_seed_option != 1);
+
+		if(save_seed_option == 1){
+			save_to_file(initial_seed);
 		}
 	}
 
@@ -316,7 +345,6 @@ int count_neighbours(int grid[y_dim][x_dim], int y, int x, bool is_three_d){
 
 }
 
-
 void display_generation_one_dim(std::bitset<ONE_D_SIZE> line){
 	for(int i = 0; i < ONE_D_SIZE; i++){
 		if(line[i] == 1){
@@ -349,7 +377,17 @@ void display_generation_two_dim(int grid[y_dim][x_dim]){
 
 //file needs to be 60 rows and 120 columns, non-delimited
 int read_from_file(std::string file_name, int (&grid)[y_dim][x_dim]){
+	
 	FILE *input_file = fopen(file_name.c_str(), "r");
+	if(input_file == NULL){
+		return 1;
+	}
+
+	if(verify_file(file_name) == 1){
+		std::cout<<"file invalid format! must be 60 rows by 120 columns";
+		return 1;
+	}
+
 	for(int i = 0; i < y_dim; i++){
 		for(int j = 0; j < x_dim; j++){
 			grid[i][j] = fgetc(input_file) - '0';
@@ -357,4 +395,100 @@ int read_from_file(std::string file_name, int (&grid)[y_dim][x_dim]){
 		fgetc(input_file); // throw away new line
 	}
 
+	return 0;
+
+}
+
+int verify_file(std::string file_name){
+	int rows = 0;
+	std::string line;
+
+	std::ifstream file(file_name.c_str());
+	while(getline(file, line)){
+		if(line.length() == 120){
+			rows++;
+		}
+	}
+
+	if(rows == 60){
+		return 0;
+	}
+	else{
+		return 1;
+	}
+}
+
+int change_sim_variables(int (&multi_d_variables)[2]){
+
+	system("clear");
+	int sim_var_option;
+
+	do{
+		std::cout<< "[1] Number of generations per simulation: " + std::to_string(multi_d_variables[0]) << std::endl;
+		std::cout<< "[2] Milliseconds between generations: " + std::to_string(multi_d_variables[1]) << std::endl;
+		std::cout<< "Select an option to change or type -1 to return to menu: ";
+		if(!(std::cin>>sim_var_option)){
+			std::cin.clear();
+			std::cin.ignore(512, '\n');
+		}
+		if(sim_var_option != 1 && sim_var_option != 2 && sim_var_option != -1){
+			std::cout<<"Please pick an option from above!"<<std::endl;
+		}
+	}while(sim_var_option != 1 && sim_var_option != 2 && sim_var_option != -1);
+
+	switch(sim_var_option){
+		case -1:
+			return 0;
+			break;
+		case 1:
+			int num_gen;
+			std::cout<<"Enter the number of generations you would like to run: ";
+			if(!(std::cin>>num_gen)){
+				std::cin.clear();
+				std::cin.ignore(512, '\n');
+				std::cout<<"Invalid input, number of generations set to default 200" << std::endl;
+				num_gen = 200;
+			}
+			if(num_gen < 1){
+				std::cout<<"Invalid input, number of generations set to default 200" << std::endl;
+				num_gen = 200;
+			}
+			multi_d_variables[0] = num_gen;
+			break;
+		case 2:
+			int time_between_gen;
+			std::cout<<"Enter the number of milliseconds between generations: ";
+			if(!(std::cin>>time_between_gen)){
+				std::cin.clear();
+				std::cin.ignore(512, '\n');
+				std::cout<<"Invalid input, milliseconds between generations set to default 50" << std::endl;
+				time_between_gen = 50;
+			}
+			if(time_between_gen < 1){
+				std::cout<<"Invalid input, milliseconds between generations set to default 200" << std::endl;
+				time_between_gen = 50;
+			}
+			multi_d_variables[1] = time_between_gen;
+			break;
+	}
+	return 0;
+}
+
+int save_to_file(int grid[y_dim][x_dim]){
+
+	std::string file_name;
+	std::cout<<"Please enter a filename to use: ";
+	if(!(std::cin>>file_name)){
+		std::cin.clear();
+		std::cin.ignore(512, '\n');
+	}
+
+	std::ofstream out(file_name.c_str());
+	for(int i = 0; i < y_dim; i++){
+		for(int j = 0; j < x_dim; j++){
+			out << grid[i][j];
+		}
+		out<<std::endl;
+	}
+	return 0;
 }
